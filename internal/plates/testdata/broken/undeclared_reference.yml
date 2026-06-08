@@ -1,0 +1,12 @@
+name: undeclared_reference
+category: scanning
+description: Plate with an undeclared template reference
+tags:
+  - nmap
+ingredients:
+  rate:
+    description: Minimum packet rate
+    required: false
+    default: "5000"
+template: |
+  nmap --min-rate {{rate}} {{target}}

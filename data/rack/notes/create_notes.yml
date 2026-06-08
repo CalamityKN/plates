@@ -1,0 +1,13 @@
+name: create_notes
+category: notes
+description: Create standard notes and scan directories for a workspace
+tags:
+  - notes
+  - workspace
+ingredients:
+  workdir:
+    description: Workspace directory
+    required: true
+template: |
+  mkdir -p {{workdir}}/nmap {{workdir}}/loot {{workdir}}/screenshots {{workdir}}/notes
+  touch {{workdir}}/notes/findings.md

@@ -1,0 +1,15 @@
+name: unused_variable
+category: scanning
+description: Plate with an unused ingredient
+tags:
+  - nmap
+ingredients:
+  target:
+    description: Target IP address or hostname
+    required: true
+  rate:
+    description: Minimum packet rate
+    required: false
+    default: "5000"
+template: |
+  nmap {{target}}

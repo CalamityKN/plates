@@ -1,0 +1,12 @@
+name: duplicate_tags
+category: scanning
+description: Plate with duplicate tags
+tags:
+  - nmap
+  - nmap
+ingredients:
+  target:
+    description: Target IP address or hostname
+    required: true
+template: |
+  nmap {{target}}

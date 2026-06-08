@@ -1,0 +1,18 @@
+name: http_server
+category: files
+description: Start a local Python HTTP server from the working directory
+tags:
+  - python
+  - http
+  - files
+ingredients:
+  workdir:
+    description: Directory to serve files from
+    required: true
+  http_port:
+    description: Local HTTP server port
+    required: false
+    default: "8000"
+template: |
+  cd {{workdir}}
+  python3 -m http.server {{http_port}}

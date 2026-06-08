@@ -1,0 +1,17 @@
+name: feroxbuster_basic
+category: web
+description: Basic Feroxbuster directory scan
+tags:
+  - web
+  - feroxbuster
+  - fuzzing
+ingredients:
+  url:
+    description: Target URL
+    required: true
+  wordlist:
+    description: Directory wordlist path
+    required: false
+    default: "/usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt"
+template: |
+  feroxbuster -u {{url}} -w {{wordlist}}

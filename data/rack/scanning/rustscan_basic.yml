@@ -1,0 +1,17 @@
+name: rustscan_basic
+category: scanning
+description: Basic RustScan command that renders target and batch size
+tags:
+  - rustscan
+  - scanning
+  - tcp
+ingredients:
+  target:
+    description: Target IP address or hostname
+    required: true
+  batch_size:
+    description: RustScan batch size
+    required: false
+    default: "5000"
+template: |
+  rustscan -a {{target}} -b {{batch_size}}

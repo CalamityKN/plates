@@ -1,0 +1,20 @@
+name: nmap_full_tcp
+category: scanning
+description: Full TCP port scan with output files
+tags:
+  - nmap
+  - scanning
+  - tcp
+ingredients:
+  target:
+    description: Target IP address or hostname
+    required: true
+  workdir:
+    description: Working directory for output files
+    required: true
+  rate:
+    description: Minimum packet rate
+    required: false
+    default: "5000"
+template: |
+  sudo nmap -p- --min-rate {{rate}} -oA {{workdir}}/nmap/full_tcp {{target}}

@@ -1,0 +1,17 @@
+name: smb_server
+category: files
+description: Start an Impacket SMB server from the working directory
+tags:
+  - impacket
+  - smb
+  - files
+ingredients:
+  share_name:
+    description: SMB share name
+    required: false
+    default: "share"
+  workdir:
+    description: Directory to share
+    required: true
+template: |
+  impacket-smbserver {{share_name}} {{workdir}} -smb2support

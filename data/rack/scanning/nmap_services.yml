@@ -1,0 +1,18 @@
+name: nmap_services
+category: scanning
+description: Service and version scan against selected ports
+tags:
+  - nmap
+  - services
+ingredients:
+  target:
+    description: Target IP address or hostname
+    required: true
+  ports:
+    description: Comma-separated list of ports
+    required: true
+  workdir:
+    description: Working directory for output files
+    required: true
+template: |
+  sudo nmap -sCV -p {{ports}} -oA {{workdir}}/nmap/services {{target}}
