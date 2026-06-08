@@ -256,7 +256,7 @@ After a successful render, PLATES prints the stored render ID:
 ```text
 --- Rendered Plate: scanning/nmap_full_tcp ---
 
-sudo nmap -p- --min-rate 5000 -oA C:\Users\knjoh\code\boxes\devhub/nmap/full_tcp 10.129.202.242
+sudo nmap -p- --min-rate 5000 -oA C:\Users\USER\code\boxes\devhub/nmap/full_tcp 10.129.202.242
 
 --- End ---
 
@@ -446,7 +446,7 @@ Initialized data directories.
 PLATES > workspace devhub
 Workspace: devhub
 PLATES[devhub] > set target 10.129.202.242
-PLATES[devhub] > set workdir C:\Users\knjoh\code\boxes\devhub
+PLATES[devhub] > set workdir C:\Users\USER\code\boxes\devhub
 PLATES[devhub] > setg http_port 8000
 PLATES[devhub] > list plates
 Available Plates:
@@ -480,14 +480,14 @@ Template Preview:
 PLATES[devhub][scanning/nmap_full_tcp] > show ingredients
 Required:
   target   Target IP address or hostname       = 10.129.202.242
-  workdir  Working directory for output files  = C:\Users\knjoh\code\boxes\devhub
+  workdir  Working directory for output files  = C:\Users\USER\code\boxes\devhub
 
 Optional:
   rate     Minimum packet rate  default: 5000  = 5000
 PLATES[devhub][scanning/nmap_full_tcp] > stamp
 --- Rendered Plate: scanning/nmap_full_tcp ---
 
-sudo nmap -p- --min-rate 5000 -oA C:\Users\knjoh\code\boxes\devhub/nmap/full_tcp 10.129.202.242
+sudo nmap -p- --min-rate 5000 -oA C:\Users\USER\code\boxes\devhub/nmap/full_tcp 10.129.202.242
 
 --- End ---
 ```
