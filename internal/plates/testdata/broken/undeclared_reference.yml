@@ -3,7 +3,7 @@ category: scanning
 description: Plate with an undeclared template reference
 tags:
   - nmap
-ingredients:
+options:
   rate:
     description: Minimum packet rate
     required: false

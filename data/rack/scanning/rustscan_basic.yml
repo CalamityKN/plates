@@ -5,7 +5,7 @@ tags:
   - rustscan
   - scanning
   - tcp
-ingredients:
+options:
   target:
     description: Target IP address or hostname
     required: true

@@ -4,7 +4,7 @@ description: Plate with duplicate tags
 tags:
   - nmap
   - nmap
-ingredients:
+options:
   target:
     description: Target IP address or hostname
     required: true

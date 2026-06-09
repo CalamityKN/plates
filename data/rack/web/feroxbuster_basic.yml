@@ -5,7 +5,7 @@ tags:
   - web
   - feroxbuster
   - fuzzing
-ingredients:
+options:
   url:
     description: Target URL
     required: true

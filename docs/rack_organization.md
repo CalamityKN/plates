@@ -48,4 +48,4 @@ show tags
 show category scanning
 ```
 
-Search checks plate names, categories, descriptions, tags, ingredient names, and ingredient descriptions.
+Search checks plate names, categories, descriptions, tags, option names, and option descriptions.

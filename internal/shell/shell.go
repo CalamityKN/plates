@@ -44,7 +44,6 @@ type Shell struct {
 	plate          *plates.Plate
 	forgeMode      bool
 	draft          *plates.Draft
-	clearOutput    bool
 	clearSecrets   bool
 	lastLiveOutput string
 	out            io.Writer
@@ -125,9 +124,6 @@ func (s *Shell) Execute(line string) error {
 	if len(fields) == 0 {
 		return nil
 	}
-	if s.clearOutput {
-		return s.confirmOutputClear(fields)
-	}
 	if s.clearSecrets {
 		return s.confirmSecretClear(fields)
 	}
@@ -160,40 +156,34 @@ func (s *Shell) Execute(line string) error {
 		return s.list(fields)
 	case "search":
 		return s.search(fields)
-	case "lint":
-		return s.lint(fields)
-	case "health":
-		return s.health(fields)
-	case "explain":
-		return s.explain(fields)
+	case "info", "ll":
+		if len(fields) != 1 {
+			return fmt.Errorf("usage: %s", fields[0])
+		}
+		return s.showPlate()
 	case "copy":
 		return s.copyOutput(fields)
 	case "save":
 		return s.save(fields)
-	case "output":
-		return s.output(fields)
+	case "history":
+		if len(fields) != 1 {
+			return errors.New("usage: history")
+		}
+		return s.outputHistory()
 	case "export":
 		return s.export(fields)
 	case "config":
 		return s.config(fields)
-	case "tip":
-		return s.tip(fields)
-	case "fortune":
-		return s.fortune(fields)
-	case "random":
-		return s.random(fields)
-	case "version":
-		return s.version(fields)
-	case "about":
-		return s.about(fields)
 	case "pack":
 		return s.pack(fields)
 	case "secret":
 		return s.secret(fields)
-	case "stamp", "render":
-		return s.stamp()
+	case "render", "r", "run":
+		return s.renderCurrent()
 	case "clear":
 		return s.clear(fields)
+	case "shell":
+		return s.shell(fields)
 	default:
 		return fmt.Errorf("unknown command %q; run 'help' for available commands", fields[0])
 	}
@@ -286,7 +276,7 @@ func (s *Shell) startForge(fields []string) error {
 
 func (s *Shell) show(fields []string) error {
 	if len(fields) < 2 {
-		return errors.New("usage: show pantry|workspace|plate|ingredients|rack|tags|category <name>")
+		return errors.New("usage: show pantry|workspace|options|rack|tags|category <name>")
 	}
 	switch fields[1] {
 	case "pantry":
@@ -307,16 +297,11 @@ func (s *Shell) show(fields []string) error {
 			return err
 		}
 		s.printValues(values, s.secretKeysForCurrentPlate())
-	case "plate":
+	case "options":
 		if len(fields) != 2 {
-			return errors.New("usage: show plate")
+			return errors.New("usage: show options")
 		}
-		return s.showPlate()
-	case "ingredients":
-		if len(fields) != 2 {
-			return errors.New("usage: show ingredients")
-		}
-		return s.showIngredients()
+		return s.showOptions()
 	case "rack":
 		if len(fields) != 2 {
 			return errors.New("usage: show rack")
@@ -333,7 +318,7 @@ func (s *Shell) show(fields []string) error {
 		}
 		return s.showCategory(fields[2])
 	default:
-		return errors.New("usage: show pantry|workspace|plate|ingredients|rack|tags|category <name>")
+		return errors.New("usage: show pantry|workspace|options|rack|tags|category <name>")
 	}
 	return nil
 }
@@ -399,135 +384,13 @@ func (s *Shell) showPlate() error {
 	fmt.Fprintf(s.out, "Description: %s\n", s.plate.Description)
 	fmt.Fprintf(s.out, "Tags: %s\n", strings.Join(s.plate.Tags, ", "))
 	fmt.Fprintf(s.out, "Path: %s\n", s.plate.Path)
-	fmt.Fprintf(s.out, "Ingredients: %d\n", len(s.plate.Ingredients))
-	fmt.Fprintf(s.out, "Health: %s\n", plates.LintPlate(*s.plate).Status())
+	fmt.Fprintf(s.out, "Options: %d\n", len(s.plate.Ingredients))
 	fmt.Fprintln(s.out)
 	fmt.Fprintln(s.out, "Template Preview:")
 	for _, line := range previewLines(s.plate.Template, 5) {
 		fmt.Fprintf(s.out, "  %s\n", line)
 	}
 	return nil
-}
-
-func (s *Shell) lint(fields []string) error {
-	if len(fields) < 2 || len(fields) > 3 {
-		return errors.New("usage: lint plate|rack|<plate>")
-	}
-	switch fields[1] {
-	case "plate":
-		if len(fields) != 2 {
-			return errors.New("usage: lint plate")
-		}
-		if s.plate == nil {
-			return errors.New("no plate loaded; run 'use <plate>' first")
-		}
-		s.printLintResult(plates.LintPlate(*s.plate))
-	case "rack":
-		if len(fields) != 2 {
-			return errors.New("usage: lint rack")
-		}
-		return s.lintRack()
-	default:
-		if len(fields) != 2 {
-			return errors.New("usage: lint <plate>")
-		}
-		plate, err := s.loader.Load(fields[1])
-		if err != nil {
-			return err
-		}
-		s.printLintResult(plates.LintPlate(plate))
-	}
-	return nil
-}
-
-func (s *Shell) lintRack() error {
-	index, err := s.browser.Index()
-	if err != nil {
-		return err
-	}
-	results := plates.LintRack(index)
-	health := plates.RackHealthFromResults(index, results)
-	fmt.Fprintf(s.out, "Linting %d plates...\n\n", health.TotalPlates)
-	fmt.Fprintf(s.out, "PASS: %d\n", health.Passing)
-	fmt.Fprintf(s.out, "WARN: %d\n", health.Warning)
-	fmt.Fprintf(s.out, "FAIL: %d\n", health.Failing)
-	if health.Failing > 0 || health.Warning > 0 {
-		fmt.Fprintln(s.out)
-		for _, result := range results {
-			if len(result.Issues) == 0 {
-				continue
-			}
-			fmt.Fprintf(s.out, "%s [%s]\n", result.Plate.Key(), result.Status())
-			for _, issue := range result.Issues {
-				fmt.Fprintf(s.out, "  [%s] %s\n", issue.Severity, issue.Message)
-			}
-		}
-	}
-	return nil
-}
-
-func (s *Shell) health(fields []string) error {
-	if len(fields) != 1 {
-		return errors.New("usage: health")
-	}
-	index, err := s.browser.Index()
-	if err != nil {
-		return err
-	}
-	results := plates.LintRack(index)
-	health := plates.RackHealthFromResults(index, results)
-	fmt.Fprintln(s.out, "Rack Health")
-	fmt.Fprintln(s.out)
-	fmt.Fprintf(s.out, "Total Plates: %d\n", health.TotalPlates)
-	fmt.Fprintf(s.out, "Categories: %d\n", len(index.Categories()))
-	fmt.Fprintf(s.out, "Tags: %d\n", len(index.Tags()))
-	fmt.Fprintln(s.out)
-	fmt.Fprintf(s.out, "Passing: %d\n", health.Passing)
-	fmt.Fprintf(s.out, "Warnings: %d\n", health.Warning)
-	fmt.Fprintf(s.out, "Failing: %d\n", health.Failing)
-	fmt.Fprintln(s.out)
-	fmt.Fprintf(s.out, "Duplicate Names: %d\n", health.DuplicateNames)
-	fmt.Fprintf(s.out, "Unused Ingredients: %d\n", health.UnusedIngredients)
-	fmt.Fprintf(s.out, "Undeclared Variables: %d\n", health.UndeclaredVariables)
-	return nil
-}
-
-func (s *Shell) explain(fields []string) error {
-	if len(fields) != 2 || fields[1] != "lint" {
-		return errors.New("usage: explain lint")
-	}
-	fmt.Fprintln(s.out, "Lint Explanations")
-	fmt.Fprintln(s.out)
-	fmt.Fprintln(s.out, "unused ingredient:")
-	fmt.Fprintln(s.out, "  An ingredient is declared in YAML but is not referenced by the template.")
-	fmt.Fprintln(s.out, "undeclared variable:")
-	fmt.Fprintln(s.out, "  The template references a variable that is not declared as an ingredient.")
-	fmt.Fprintln(s.out, "duplicate tags:")
-	fmt.Fprintln(s.out, "  The same tag appears more than once on a plate.")
-	fmt.Fprintln(s.out, "duplicate plate name:")
-	fmt.Fprintln(s.out, "  Multiple categories contain plates with the same name; use category/name.")
-	return nil
-}
-
-func (s *Shell) printLintResult(result plates.LintResult) {
-	switch result.Status() {
-	case "PASS":
-		fmt.Fprintln(s.out, "PASS")
-		fmt.Fprintln(s.out)
-		fmt.Fprintln(s.out, "No issues found.")
-	case "WARN":
-		fmt.Fprintln(s.out, "WARNINGS")
-		fmt.Fprintln(s.out)
-		for _, issue := range result.Issues {
-			fmt.Fprintf(s.out, "[%s] %s\n", issue.Severity, issue.Message)
-		}
-	default:
-		fmt.Fprintln(s.out, "ERRORS")
-		fmt.Fprintln(s.out)
-		for _, issue := range result.Issues {
-			fmt.Fprintf(s.out, "[%s] %s\n", issue.Severity, issue.Message)
-		}
-	}
 }
 
 func (s *Shell) showRack() error {
@@ -578,7 +441,7 @@ func (s *Shell) showCategory(category string) error {
 	return nil
 }
 
-func (s *Shell) showIngredients() error {
+func (s *Shell) showOptions() error {
 	if s.plate == nil {
 		return errors.New("no plate loaded; run 'use <plate>' first")
 	}
@@ -596,7 +459,7 @@ func (s *Shell) showIngredients() error {
 
 	if len(resolution.Missing) > 0 {
 		fmt.Fprintln(s.out)
-		fmt.Fprintln(s.out, "Missing required ingredients:")
+		fmt.Fprintln(s.out, "Missing required options:")
 		for _, name := range resolution.Missing {
 			fmt.Fprintf(s.out, "  %s\n", name)
 		}
@@ -604,7 +467,7 @@ func (s *Shell) showIngredients() error {
 	return nil
 }
 
-func (s *Shell) stamp() error {
+func (s *Shell) renderCurrent() error {
 	if s.plate == nil {
 		return errors.New("no plate loaded; run 'use <plate>' first")
 	}
@@ -621,7 +484,7 @@ func (s *Shell) stamp() error {
 	}
 	missing := s.filterMissingSecrets(resolution.Missing, secretValues)
 	if len(missing) > 0 {
-		fmt.Fprintln(s.out, "Missing required ingredients:")
+		fmt.Fprintln(s.out, "Missing required options:")
 		for _, name := range missing {
 			fmt.Fprintf(s.out, "  %s\n", name)
 		}
@@ -668,7 +531,9 @@ func (s *Shell) filterMissingSecrets(missing []string, secretValues map[string]s
 }
 
 func (s *Shell) printRendered(rendered, id string) {
-	fmt.Fprintf(s.out, "--- Rendered Plate: %s ---\n\n", s.plate.Key())
+	fmt.Fprintf(s.out, "--- Rendered Plate: %s ---\n", s.plate.Key())
+	fmt.Fprintln(s.out, "Render-only output. PLATES did not execute this command.")
+	fmt.Fprintln(s.out)
 	fmt.Fprintln(s.out, strings.TrimRight(rendered, "\n"))
 	fmt.Fprintln(s.out)
 	fmt.Fprintln(s.out, "--- End ---")
@@ -709,6 +574,14 @@ func (s *Shell) clear(fields []string) error {
 	}
 	s.plate = nil
 	fmt.Fprintln(s.out, "Plate cleared.")
+	return nil
+}
+
+func (s *Shell) shell(fields []string) error {
+	if len(fields) != 2 || fields[1] != "clear" {
+		return errors.New("usage: shell clear")
+	}
+	fmt.Fprint(s.out, "\033[H\033[2J")
 	return nil
 }
 
@@ -755,63 +628,14 @@ func (s *Shell) save(fields []string) error {
 	return nil
 }
 
-func (s *Shell) output(fields []string) error {
-	if len(fields) < 2 {
-		return errors.New("usage: output history|show|repeat|delete|clear|stats")
-	}
-	switch fields[1] {
-	case "history":
-		if len(fields) != 2 {
-			return errors.New("usage: output history")
-		}
-		return s.outputHistory()
-	case "show":
-		if len(fields) != 3 && len(fields) != 4 {
-			return errors.New("usage: output show <id> [--reveal]")
-		}
-		reveal := len(fields) == 4 && fields[3] == "--reveal"
-		if len(fields) == 4 && !reveal {
-			return errors.New("usage: output show <id> [--reveal]")
-		}
-		return s.outputShow(fields[2], true, reveal)
-	case "repeat":
-		if len(fields) != 3 {
-			return errors.New("usage: output repeat <id>")
-		}
-		return s.outputShow(fields[2], false, false)
-	case "delete":
-		if len(fields) != 3 {
-			return errors.New("usage: output delete <id>")
-		}
-		if err := s.outputStore.Delete(fields[2]); err != nil {
-			return err
-		}
-		fmt.Fprintf(s.out, "Deleted Render #%s\n", fields[2])
-	case "clear":
-		if len(fields) != 2 {
-			return errors.New("usage: output clear")
-		}
-		s.clearOutput = true
-		fmt.Fprintln(s.out, "Type YES to continue:")
-	case "stats":
-		if len(fields) != 2 {
-			return errors.New("usage: output stats")
-		}
-		return s.outputStats()
-	default:
-		return errors.New("usage: output history|show|repeat|delete|clear|stats")
-	}
-	return nil
-}
-
 func (s *Shell) export(fields []string) error {
 	if len(fields) != 2 {
-		return errors.New("usage: export markdown|json|yaml")
+		return errors.New("usage: export markdown/json/yaml")
 	}
 	switch fields[1] {
 	case "markdown", "json", "yaml":
 	default:
-		return errors.New("usage: export markdown|json|yaml")
+		return errors.New("usage: export markdown/json/yaml")
 	}
 	record, err := s.latestOutput()
 	if err != nil {
@@ -986,30 +810,6 @@ func (s *Shell) outputShow(id string, includeMetadata bool, reveal bool) error {
 	return nil
 }
 
-func (s *Shell) outputStats() error {
-	stats, err := s.outputStore.Stats()
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(s.out, "Output Statistics")
-	fmt.Fprintln(s.out)
-	fmt.Fprintf(s.out, "Total Renders: %d\n", stats.TotalRenders)
-	fmt.Fprintln(s.out)
-	fmt.Fprintln(s.out, "Top Plates:")
-	s.printOutputCounts(stats.TopPlates)
-	fmt.Fprintln(s.out)
-	fmt.Fprintln(s.out, "Top Categories:")
-	s.printOutputCounts(stats.TopCategories)
-	fmt.Fprintln(s.out)
-	fmt.Fprintln(s.out, "Most Recent:")
-	if stats.MostRecent == nil {
-		fmt.Fprintln(s.out, "  (none)")
-	} else {
-		fmt.Fprintf(s.out, "  %s\n", stats.MostRecent.Format("2006-01-02 15:04"))
-	}
-	return nil
-}
-
 func (s *Shell) config(fields []string) error {
 	if len(fields) < 2 {
 		return errors.New("usage: config show|set <key> <value>")
@@ -1041,77 +841,6 @@ func (s *Shell) config(fields []string) error {
 	default:
 		return errors.New("usage: config show|set <key> <value>")
 	}
-	return nil
-}
-
-func (s *Shell) tip(fields []string) error {
-	if len(fields) != 1 {
-		return errors.New("usage: tip")
-	}
-	fmt.Fprintln(s.out, randomTip())
-	return nil
-}
-
-func (s *Shell) fortune(fields []string) error {
-	if len(fields) != 1 {
-		return errors.New("usage: fortune")
-	}
-	fmt.Fprintln(s.out, randomFortune())
-	return nil
-}
-
-func (s *Shell) random(fields []string) error {
-	if len(fields) < 2 || len(fields) > 3 || fields[1] != "plate" {
-		return errors.New("usage: random plate [--use]")
-	}
-	use := false
-	if len(fields) == 3 {
-		if fields[2] != "--use" {
-			return errors.New("usage: random plate [--use]")
-		}
-		use = true
-	}
-	index, err := s.browser.Index()
-	if err != nil {
-		return err
-	}
-	if len(index.Plates) == 0 {
-		return errors.New("no plates found")
-	}
-	plate := index.Plates[randomIndex(len(index.Plates))]
-	fmt.Fprintln(s.out, "Random Plate")
-	fmt.Fprintln(s.out)
-	fmt.Fprintln(s.out, plate.Key())
-	fmt.Fprintf(s.out, "  %s\n", plate.Description)
-	if len(plate.Tags) > 0 {
-		fmt.Fprintf(s.out, "  Tags: %s\n", strings.Join(plate.Tags, ", "))
-	}
-	fmt.Fprintln(s.out)
-	if use {
-		s.plate = &plate
-		fmt.Fprintf(s.out, "Loaded plate: %s\n", plate.Key())
-	} else {
-		fmt.Fprintln(s.out, "Use it with:")
-		fmt.Fprintf(s.out, "  use %s\n", plate.Key())
-	}
-	return nil
-}
-
-func (s *Shell) version(fields []string) error {
-	if len(fields) != 1 {
-		return errors.New("usage: version")
-	}
-	fmt.Fprintf(s.out, "PLATES version %s\n", Version)
-	return nil
-}
-
-func (s *Shell) about(fields []string) error {
-	if len(fields) != 1 {
-		return errors.New("usage: about")
-	}
-	fmt.Fprintln(s.out, "PLATES is a local, render-only command-template system.")
-	fmt.Fprintln(s.out, "It helps organize repeatable terminal workflows as reusable YAML plates.")
-	fmt.Fprintln(s.out, "PLATES does not execute rendered commands.")
 	return nil
 }
 
@@ -1344,22 +1073,9 @@ func (s *Shell) printStartup() {
 	}
 }
 
-func (s *Shell) confirmOutputClear(fields []string) error {
-	s.clearOutput = false
-	if len(fields) == 1 && fields[0] == "YES" {
-		if err := s.outputStore.Clear(); err != nil {
-			return err
-		}
-		fmt.Fprintln(s.out, "Output history cleared.")
-		return nil
-	}
-	fmt.Fprintln(s.out, "Output history clear canceled.")
-	return nil
-}
-
 func (s *Shell) latestOutput() (output.RenderRecord, error) {
 	if s.outputStore == nil {
-		return output.RenderRecord{}, errors.New("output history is not configured")
+		return output.RenderRecord{}, errors.New("history is not configured")
 	}
 	return s.outputStore.Latest()
 }
@@ -1506,7 +1222,6 @@ func (s *Shell) completer() readline.AutoCompleter {
 		}
 	}
 	return readline.NewPrefixCompleter(
-		readline.PcItem("about"),
 		readline.PcItem("clear", readline.PcItem("plate")),
 		readline.PcItem("config",
 			readline.PcItem("show"),
@@ -1520,7 +1235,6 @@ func (s *Shell) completer() readline.AutoCompleter {
 		),
 		readline.PcItem("copy"),
 		readline.PcItem("export", readline.PcItem("markdown"), readline.PcItem("json"), readline.PcItem("yaml")),
-		readline.PcItem("fortune"),
 		readline.PcItem("forge"),
 		readline.PcItem("guide",
 			readline.PcItem("plates"),
@@ -1530,38 +1244,29 @@ func (s *Shell) completer() readline.AutoCompleter {
 			readline.PcItem("examples"),
 			readline.PcItem("safety"),
 		),
-		readline.PcItem("health"),
+		readline.PcItem("history"),
 		readline.PcItem("help"),
+		readline.PcItem("info"),
 		readline.PcItem("init"),
-		readline.PcItem("lint", readline.PcItem("plate"), readline.PcItem("rack")),
 		readline.PcItem("list", readline.PcItem("plates")),
-		readline.PcItem("output",
-			readline.PcItem("history"),
-			readline.PcItem("show"),
-			readline.PcItem("repeat"),
-			readline.PcItem("delete"),
-			readline.PcItem("clear"),
-			readline.PcItem("stats"),
-		),
-		readline.PcItem("random", readline.PcItem("plate", readline.PcItem("--use"))),
+		readline.PcItem("ll"),
+		readline.PcItem("r"),
 		readline.PcItem("render"),
+		readline.PcItem("run"),
 		readline.PcItem("save", readline.PcItem("output")),
 		readline.PcItem("search", readline.PcItem("plates")),
 		readline.PcItem("set"),
 		readline.PcItem("setg"),
+		readline.PcItem("shell", readline.PcItem("clear")),
 		readline.PcItem("show",
 			readline.PcItem("pantry"),
 			readline.PcItem("workspace"),
-			readline.PcItem("plate"),
-			readline.PcItem("ingredients"),
+			readline.PcItem("options"),
 			readline.PcItem("rack"),
 			readline.PcItem("tags"),
 			readline.PcItem("category", categoryItems...),
 		),
-		readline.PcItem("stamp"),
-		readline.PcItem("tip"),
 		readline.PcItem("use", plateItems...),
-		readline.PcItem("version"),
 		readline.PcItem("workspace"),
 	)
 }
@@ -1605,11 +1310,11 @@ func (s *Shell) executeForge(line string, fields []string) error {
 		fmt.Fprintln(s.out, "Template lines cleared.")
 	case "show":
 		return s.forgeShow(fields)
-	case "add_var":
+	case "add_var", "add_option":
 		return s.forgeAddVar(fields)
 	case "add_secret_var":
 		return s.forgeAddSecretVar(fields)
-	case "add_optional_var":
+	case "add_optional_var", "add_optional_option":
 		return s.forgeAddOptionalVar(fields)
 	case "set_var_required":
 		return s.forgeSetVarRequired(fields)
@@ -1711,7 +1416,7 @@ func (s *Shell) forgeShow(fields []string) error {
 
 func (s *Shell) forgeAddVar(fields []string) error {
 	if len(fields) < 3 {
-		return errors.New("usage: add_var <name> <description>")
+		return fmt.Errorf("usage: %s <name> <description>", fields[0])
 	}
 	return s.draft.AddRequiredVar(fields[1], strings.Join(fields[2:], " "))
 }
@@ -1725,7 +1430,7 @@ func (s *Shell) forgeAddSecretVar(fields []string) error {
 
 func (s *Shell) forgeAddOptionalVar(fields []string) error {
 	if len(fields) < 4 {
-		return errors.New("usage: add_optional_var <name> <default> <description>")
+		return fmt.Errorf("usage: %s <name> <default> <description>", fields[0])
 	}
 	return s.draft.AddOptionalVar(fields[1], fields[2], strings.Join(fields[3:], " "))
 }
@@ -1816,7 +1521,7 @@ func (s *Shell) printDraft() {
 	fmt.Fprintf(s.out, "Tags: %s\n", strings.Join(s.draft.Tags, ", "))
 	fmt.Fprintf(s.out, "Save Path: %s\n", s.draftSavePath())
 	fmt.Fprintln(s.out)
-	fmt.Fprintln(s.out, "Ingredients:")
+	fmt.Fprintln(s.out, "Options:")
 	s.printDraftVars()
 	fmt.Fprintln(s.out)
 	fmt.Fprintln(s.out, "Template Lines:")
@@ -2008,13 +1713,15 @@ func (s *Shell) printForgeHelp() {
 	fmt.Fprintln(s.out, "  delete_line <number>                     Delete a template line")
 	fmt.Fprintln(s.out, "  clear_lines                              Remove all template lines")
 	fmt.Fprintln(s.out, "  show lines                               Show numbered template lines")
-	fmt.Fprintln(s.out, "  add_var <name> <description>             Add required ingredient")
-	fmt.Fprintln(s.out, "  add_secret_var <name> <description>      Add required secret ingredient")
-	fmt.Fprintln(s.out, "  add_optional_var <name> <default> <desc> Add optional ingredient")
+	fmt.Fprintln(s.out, "  add_option <name> <description>          Add required option")
+	fmt.Fprintln(s.out, "  add_optional_option <name> <default> <desc> Add optional option")
+	fmt.Fprintln(s.out, "  add_var <name> <description>             Alias for add_option")
+	fmt.Fprintln(s.out, "  add_secret_var <name> <description>      Add required secret option")
+	fmt.Fprintln(s.out, "  add_optional_var <name> <default> <desc> Alias for add_optional_option")
 	fmt.Fprintln(s.out, "  set_var_required <name> <true|false>     Toggle required flag")
-	fmt.Fprintln(s.out, "  set_var_default <name> <value>           Set ingredient default")
-	fmt.Fprintln(s.out, "  rm_var <name>                            Remove ingredient")
-	fmt.Fprintln(s.out, "  show vars                                Show draft ingredients")
+	fmt.Fprintln(s.out, "  set_var_default <name> <value>           Set option default")
+	fmt.Fprintln(s.out, "  rm_var <name>                            Remove option")
+	fmt.Fprintln(s.out, "  show vars                                Show draft options")
 	fmt.Fprintln(s.out, "  add_tag <tag>                            Add tag")
 	fmt.Fprintln(s.out, "  rm_tag <tag>                             Remove tag")
 	fmt.Fprintln(s.out, "  show tags                                Show draft tags")
@@ -2036,66 +1743,53 @@ func previewLines(text string, maxLines int) []string {
 
 func (s *Shell) printHelp() {
 	fmt.Fprintln(s.out, "Available commands:")
-	fmt.Fprintln(s.out, "  init                  Create data/pantry, data/workspaces, and data/rack")
-	fmt.Fprintln(s.out, "  workspace <name>      Switch to or create a workspace")
-	fmt.Fprintln(s.out, "  set <key> <value>     Set a variable in the active workspace")
-	fmt.Fprintln(s.out, "  setg <key> <value>    Set a global pantry variable")
-	fmt.Fprintln(s.out, "  use <plate>           Load a plate")
-	fmt.Fprintln(s.out, "  forge                 Create a new plate")
-	fmt.Fprintln(s.out, "  config show           Show PLATES config")
-	fmt.Fprintln(s.out, "  config set <key> <value> Set a config value")
-	fmt.Fprintln(s.out, "  secret set <key> <value> Store a secret")
-	fmt.Fprintln(s.out, "  secret get <key>      Show a masked secret")
-	fmt.Fprintln(s.out, "  secret reveal <key>   Show a raw secret")
-	fmt.Fprintln(s.out, "  secret list           List masked secrets")
-	fmt.Fprintln(s.out, "  secret delete <key>   Delete a secret")
-	fmt.Fprintln(s.out, "  secret clear --force  Clear all secrets")
-	fmt.Fprintln(s.out, "  tip                   Show a usage tip")
-	fmt.Fprintln(s.out, "  fortune               Show a PLATES fortune")
-	fmt.Fprintln(s.out, "  random plate          Show a random plate")
-	fmt.Fprintln(s.out, "  random plate --use    Load a random plate")
-	fmt.Fprintln(s.out, "  version               Show PLATES version")
-	fmt.Fprintln(s.out, "  about                 Show PLATES summary")
-	fmt.Fprintln(s.out, "  pack list             List exported and imported packs")
-	fmt.Fprintln(s.out, "  pack export <name>    Export the rack as a pack")
-	fmt.Fprintln(s.out, "  pack export <name> --category <category> Export a category")
-	fmt.Fprintln(s.out, "  pack export <name> --tag <tag> Export plates by tag")
-	fmt.Fprintln(s.out, "  pack export <name> --plate <category/name> Export one plate")
-	fmt.Fprintln(s.out, "  pack inspect <path>   Inspect a pack without importing")
-	fmt.Fprintln(s.out, "  pack validate <path>  Validate a pack")
-	fmt.Fprintln(s.out, "  pack import <path>    Import a pack")
-	fmt.Fprintln(s.out, "  pack import <path> --force Import and overwrite conflicts")
-	fmt.Fprintln(s.out, "  guide                 List built-in guide topics")
-	fmt.Fprintln(s.out, "  guide <topic>         Show a built-in guide topic")
+	fmt.Fprintln(s.out)
+	fmt.Fprintln(s.out, "Variables and State")
 	fmt.Fprintln(s.out, "  show workspace        Show variables in the active workspace")
 	fmt.Fprintln(s.out, "  show pantry           Show global pantry variables")
-	fmt.Fprintln(s.out, "  show plate            Show loaded plate metadata")
-	fmt.Fprintln(s.out, "  show ingredients      Show variables required by current plate")
+	fmt.Fprintln(s.out, "  show options          Show options for the current plate")
+	fmt.Fprintln(s.out, "  set <key> <value>     Set a variable in the active workspace")
+	fmt.Fprintln(s.out, "  setg <key> <value>    Set a global pantry variable")
+	fmt.Fprintln(s.out, "  workspace <name>      Switch to or create a workspace")
+	fmt.Fprintln(s.out)
+	fmt.Fprintln(s.out, "Plate Usage")
 	fmt.Fprintln(s.out, "  list plates           List available plates by category")
-	fmt.Fprintln(s.out, "  search plates <query> Search plates by name, description, tags, and ingredients")
+	fmt.Fprintln(s.out, "  search plates <query> Search plates by name, description, tags, and options")
+	fmt.Fprintln(s.out, "  use <plate>           Load a plate")
+	fmt.Fprintln(s.out, "  info                  Show loaded plate metadata")
+	fmt.Fprintln(s.out, "  ll                    Alias for info")
+	fmt.Fprintln(s.out, "  render                Render current plate")
+	fmt.Fprintln(s.out, "  r                     Alias for render")
+	fmt.Fprintln(s.out, "  run                   Alias for render; does not execute commands")
+	fmt.Fprintln(s.out, "  clear plate           Unload current plate")
+	fmt.Fprintln(s.out)
+	fmt.Fprintln(s.out, "Forge Mode")
+	fmt.Fprintln(s.out, "  forge                 Create a new plate")
+	fmt.Fprintln(s.out, "  use forge             Enter Forge Mode")
+	fmt.Fprintln(s.out)
+	fmt.Fprintln(s.out, "Rack / Packs")
 	fmt.Fprintln(s.out, "  show rack             Show rack summary")
 	fmt.Fprintln(s.out, "  show tags             Show tag counts")
 	fmt.Fprintln(s.out, "  show category <name>  Show plates in a category")
-	fmt.Fprintln(s.out, "  lint plate            Lint the loaded plate")
-	fmt.Fprintln(s.out, "  lint <plate>          Lint a plate without loading it")
-	fmt.Fprintln(s.out, "  lint rack             Lint all plates in the rack")
-	fmt.Fprintln(s.out, "  health                Show rack health summary")
-	fmt.Fprintln(s.out, "  explain lint          Explain lint rules")
+	fmt.Fprintln(s.out, "  pack list             List exported and imported packs")
+	fmt.Fprintln(s.out, "  pack export <name>    Export the rack as a pack")
+	fmt.Fprintln(s.out, "  pack inspect <path>   Inspect a pack without importing")
+	fmt.Fprintln(s.out, "  pack validate <path>  Validate a pack")
+	fmt.Fprintln(s.out, "  pack import <path>    Import a pack")
+	fmt.Fprintln(s.out)
+	fmt.Fprintln(s.out, "Output")
 	fmt.Fprintln(s.out, "  copy                  Copy latest rendered output to clipboard")
 	fmt.Fprintln(s.out, "  save output [file]    Save latest rendered output")
-	fmt.Fprintln(s.out, "  output history        Show render history")
-	fmt.Fprintln(s.out, "  output show <id>      Show a stored render")
-	fmt.Fprintln(s.out, "  output show <id> --reveal Show raw stored output when enabled")
-	fmt.Fprintln(s.out, "  output repeat <id>    Re-display stored output")
-	fmt.Fprintln(s.out, "  output delete <id>    Delete a stored render")
-	fmt.Fprintln(s.out, "  output clear          Clear render history")
-	fmt.Fprintln(s.out, "  output stats          Show output statistics")
-	fmt.Fprintln(s.out, "  export markdown       Export latest render as Markdown")
-	fmt.Fprintln(s.out, "  export json           Export latest render as JSON")
-	fmt.Fprintln(s.out, "  export yaml           Export latest render as YAML")
-	fmt.Fprintln(s.out, "  stamp                 Render current plate")
-	fmt.Fprintln(s.out, "  render                Alias for stamp")
-	fmt.Fprintln(s.out, "  clear plate           Unload current plate")
+	fmt.Fprintln(s.out, "  history               Show recent rendered outputs")
+	fmt.Fprintln(s.out, "  export markdown/json/yaml Export latest render")
+	fmt.Fprintln(s.out)
+	fmt.Fprintln(s.out, "Guides and Utility")
+	fmt.Fprintln(s.out, "  init                  Create data/pantry, data/workspaces, and data/rack")
+	fmt.Fprintln(s.out, "  guide                 List built-in guide topics")
+	fmt.Fprintln(s.out, "  guide <topic>         Show a built-in guide topic")
+	fmt.Fprintln(s.out, "  shell clear           Clear the terminal screen")
+	fmt.Fprintln(s.out, "  config show           Show PLATES config")
+	fmt.Fprintln(s.out, "  config set <key> <value> Set a config value")
 	fmt.Fprintln(s.out, "  help                  Show this help")
 	fmt.Fprintln(s.out, "  exit, quit            Leave PLATES")
 }

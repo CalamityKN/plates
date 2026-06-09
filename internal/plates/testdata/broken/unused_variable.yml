@@ -3,7 +3,7 @@ category: scanning
 description: Plate with an unused ingredient
 tags:
   - nmap
-ingredients:
+options:
   target:
     description: Target IP address or hostname
     required: true

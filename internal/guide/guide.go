@@ -18,7 +18,7 @@ var topics = []Topic{
 		Text: `Plate YAML Guide
 
 A plate is a reusable command template stored under data/rack/.
-PLATES loads YAML plates, resolves ingredients, and renders text only.
+PLATES loads YAML plates, resolves options, and renders text only.
 
 Required fields:
   name          File-safe plate name
@@ -28,7 +28,7 @@ Required fields:
 
 Common optional fields:
   tags          Searchable labels
-  ingredients   Variables used by the template
+  options       Variables used by the template
 
 Example:
   name: http_server
@@ -38,7 +38,7 @@ Example:
     - python
     - http
     - files
-  ingredients:
+  options:
     workdir:
       description: Directory to serve files from
       required: true
@@ -51,8 +51,8 @@ Example:
     python3 -m http.server {{http_port}}
 
 Template variables use simple names like {{target}} or {{http_port}}.
-Required ingredients must resolve before stamp/render will print output.
-Optional ingredients can provide defaults.`,
+Required options must resolve before render will print output.
+Optional options can provide defaults.`,
 	},
 	{
 		Name:        "forge",
@@ -71,8 +71,8 @@ Core commands:
   insert_line <number> <text>
   delete_line <number>
   clear_lines
-  add_var <name> <description>
-  add_optional_var <name> <default> <description>
+  add_option <name> <description>
+  add_optional_option <name> <default> <description>
   add_tag <tag>
   show draft
   validate
@@ -86,7 +86,7 @@ Example:
   set category scanning
   set description "My reusable command"
   add_line "tool --target {{target}}"
-  add_var target "Target IP address"
+  add_option target "Target IP address"
   add_tag scanning
   validate
   save
@@ -96,14 +96,14 @@ Existing files require save --force to overwrite.`,
 	},
 	{
 		Name:        "variables",
-		Description: "Pantry, workspace variables, ingredients, and defaults",
+		Description: "Pantry, workspace variables, options, and defaults",
 		Text: `Variables Guide
 
 PLATES resolves values from highest to lowest priority:
   1. Session/workspace values set with set during the active session
   2. Workspace YAML values from data/workspaces/<workspace>.yaml
   3. Pantry/global values from data/pantry/globals.yaml
-  4. Ingredient defaults from the plate YAML
+  4. Option defaults from the plate YAML
 
 Commands:
   setg <key> <value>       Set a global pantry value
@@ -112,9 +112,9 @@ Commands:
   secret list              List masked secrets
   show pantry              Show global values
   show workspace           Show active workspace values
-  show ingredients         Show required and optional plate variables
+  show options             Show required and optional plate variables
 
-Missing required ingredients prevent stamp/render.
+Missing required options prevent render.
 Defaults are useful for common options such as http_port or rate.
 
 Secret syntax:
@@ -154,8 +154,8 @@ Commands:
   show tags
   show category <name>
 
-Search checks names, categories, descriptions, tags, ingredient names,
-and ingredient descriptions.`,
+Search checks names, categories, descriptions, tags, option names,
+and option descriptions.`,
 	},
 	{
 		Name:        "examples",
@@ -168,19 +168,19 @@ Initialize and create a workspace:
 
 Set values:
   set target 10.129.202.242
-  set workdir C:\Users\knjoh\code\boxes\devhub
+  set workdir C:\Users\BOB\code\boxes\devhub
   setg http_port 8000
 
 Browse and use a scanning plate:
   list plates
   search plates nmap
   use scanning/nmap_full_tcp
-  show ingredients
-  stamp
+  show options
+  render
 
 Use a file-serving plate:
   use files/http_server
-  show ingredients
+  show options
   render
 
 Create a plate:
@@ -188,7 +188,7 @@ Create a plate:
   set name my_plate
   set category misc
   add_line "tool {{target}}"
-  add_var target "Target host"
+  add_option target "Target host"
   validate
   save`,
 	},

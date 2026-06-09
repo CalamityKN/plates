@@ -1,6 +1,6 @@
 # Variables
 
-PLATES resolves template variables from pantry values, workspace values, session updates, and ingredient defaults.
+PLATES resolves template variables from pantry values, workspace values, session updates, and option defaults.
 
 ## Precedence
 
@@ -9,7 +9,7 @@ Highest priority wins:
 1. Session/workspace variables set during the active workspace session
 2. Workspace variables from `data/workspaces/<workspace>.yaml`
 3. Pantry/global variables from `data/pantry/globals.yaml`
-4. Ingredient defaults from the plate
+4. Option defaults from the plate
 
 ## Pantry
 
@@ -28,13 +28,13 @@ Use workspace variables for target-specific values.
 ```text
 workspace devhub
 set target 10.129.202.242
-set workdir C:\Users\knjoh\code\boxes\devhub
+set workdir C:\Users\BOB\code\boxes\devhub
 show workspace
 ```
 
-## Ingredients
+## Options
 
-`show ingredients` displays required and optional ingredients for the loaded plate. Missing required ingredients prevent `stamp` and `render` from printing rendered output.
+`show options` displays required and optional options for the loaded plate. Missing required options prevent `render` and `render` from printing rendered output.
 
 Defaults are used when no session, workspace, or pantry value exists.
 
@@ -54,7 +54,7 @@ Template syntax:
 {{secret "password"}}
 ```
 
-Secret ingredients can be marked with `secret: true`. PLATES masks those values in normal displays.
+Secret options can be marked with `secret: true`. PLATES masks those values in normal displays.
 
 Secrets are stored in `data/secrets/secrets.yaml` as local plaintext in this MVP.
 

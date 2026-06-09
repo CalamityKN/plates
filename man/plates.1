@@ -1,89 +1,26 @@
-.TH PLATES 1 "June 2026" "PLATES 0.8.0" "User Commands"
+.TH PLATES 1 "June 2026" "PLATES" "User Commands"
 .SH NAME
-plates \- local render-only command-template framework
+plates \- local render-only command-template system
 .SH SYNOPSIS
 .B plates
 .SH DESCRIPTION
 .B PLATES
-is a local command-template rendering framework. It loads reusable YAML
-templates called plates, resolves variables from pantry values, workspace
-values, secrets, environment variables, and ingredient defaults, then prints
-rendered command text for manual review.
+loads reusable YAML command templates called plates, resolves options from
+pantry values, workspace values, option defaults, environment variables, and
+local secrets, then prints rendered command text for manual review.
 .PP
-PLATES does not execute rendered commands.
-.SH CONCEPTS
-.TP
-.B Plate
-A reusable YAML command template.
-.TP
-.B Rack
-The collection of plates under
-.IR data/rack/ .
-.TP
-.B Pantry
-Global variables stored in
-.IR data/pantry/globals.yaml .
-.TP
-.B Workspace
-Project-specific variables stored in
-.IR data/workspaces/<name>.yaml .
-.TP
-.B Ingredients
-Variables required or optionally used by a plate.
-.TP
-.B Stamp
-Render the selected plate.
-.TP
-.B Forge
-Interactive plate creation mode.
+PLATES is render-only. It does not execute rendered commands.
 .SH COMMANDS
-.SS Core Shell
+.SS Variables and State
 .TP
-.B help
-Show available commands.
+.B show pantry
+Show global pantry variables.
 .TP
-.B guide
-List built-in guide topics.
+.B show workspace
+Show active workspace variables.
 .TP
-.B guide plates|forge|variables|rack|examples|safety
-Show a built-in guide topic.
-.TP
-.B version
-Show the PLATES version.
-.TP
-.B about
-Show a short description of PLATES.
-.TP
-.B exit
-.TQ
-.B quit
-Exit the interactive shell.
-.SS Initialization And Config
-.TP
-.B init
-Create the local data directories.
-.TP
-.B config show
-Show configuration.
-.TP
-.B config set banner true|false
-Enable or disable the startup banner.
-.TP
-.B config set theme default|minimal
-Set the theme name.
-.TP
-.B config set prompt_style full|compact
-Set prompt verbosity.
-.TP
-.B config set tips true|false
-Enable or disable tips.
-.TP
-.B config set store_secret_outputs true|false
-Control whether raw secret-bearing output may be stored in history.
-.SS Variables
-.TP
-.B workspace <name>
-Switch to or create a workspace.
+.B show options
+Show required and optional options for the loaded plate.
 .TP
 .B set <key> <value>
 Set a variable in the active workspace.
@@ -91,37 +28,57 @@ Set a variable in the active workspace.
 .B setg <key> <value>
 Set a global pantry variable.
 .TP
-.B show workspace
-Show active workspace variables.
-.TP
-.B show pantry
-Show global pantry variables.
-.SS Secrets
-.TP
-.B secret set <key> <value>
-Store a local secret.
-.TP
-.B secret get <key>
-Show a masked secret value.
-.TP
-.B secret reveal <key>
-Show the raw secret value.
-.TP
-.B secret list
-List stored secrets with masked values.
-.TP
-.B secret delete <key>
-Delete one secret.
-.TP
-.B secret clear --force
-Delete all secrets.
-.SS Rack Browsing
+.B workspace <name>
+Switch to or create a workspace.
+.SS Plate Usage
 .TP
 .B list plates
-List available plates grouped by category.
+List available plates by category.
 .TP
 .B search plates <query>
-Search names, categories, descriptions, tags, and ingredients.
+Search plate names, categories, descriptions, tags, and options.
+.TP
+.B use <plate>
+Load a plate by name or category/name.
+.TP
+.B info
+Show loaded plate metadata and a template preview.
+.TP
+.B ll
+Alias for
+.BR info .
+.TP
+.B render
+Render the loaded plate.
+.TP
+.B r
+Alias for
+.BR render .
+.TP
+.B run
+Alias for
+.BR render .
+This command renders only and does not execute output.
+.TP
+.B clear plate
+Unload the current plate.
+.SS Forge Mode
+.TP
+.B forge
+.TQ
+.B use forge
+Enter interactive Forge Mode.
+.PP
+Preferred Forge option commands are:
+.BR add_option
+and
+.BR add_optional_option .
+The older
+.BR add_var
+and
+.BR add_optional_var
+forms remain aliases.
+.SS Rack / Packs
 .TP
 .B show rack
 Show rack summary.
@@ -132,194 +89,110 @@ Show tag counts.
 .B show category <name>
 Show plates in a category.
 .TP
-.B random plate
-Display a random plate.
-.TP
-.B random plate --use
-Load a random plate.
-.SS Plate Use
-.TP
-.B use <plate>
-Load a plate by name or category/name.
-.TP
-.B show plate
-Show loaded plate metadata, health, and template preview.
-.TP
-.B show ingredients
-Show required and optional variables for the loaded plate.
-.TP
-.B stamp
-.TQ
-.B render
-Render the loaded plate and store an output history record.
-.TP
-.B clear plate
-Unload the current plate.
-.SS Output Management
-.TP
-.B copy
-Copy the most recent rendered output to the system clipboard.
-.TP
-.B save output [filename]
-Save the most recent rendered output to
-.IR data/output/rendered/ .
-.TP
-.B output history
-Show render history.
-.TP
-.B output show <id> [--reveal]
-Show a stored render. Secret-bearing output is redacted unless raw storage was enabled and
-.B --reveal
-is used.
-.TP
-.B output repeat <id>
-Print stored output without metadata.
-.TP
-.B output delete <id>
-Delete one render record.
-.TP
-.B output clear
-Clear render history after confirmation.
-.TP
-.B output stats
-Show render history statistics.
-.TP
-.B export markdown|json|yaml
-Export the most recent render.
-.SS Linting And Health
-.TP
-.B lint plate
-Lint the currently loaded plate.
-.TP
-.B lint <plate>
-Lint a specific plate without loading it.
-.TP
-.B lint rack
-Lint every plate in the rack.
-.TP
-.B health
-Show rack health summary.
-.TP
-.B explain lint
-Explain common lint findings.
-.SS Forge Mode
-.TP
-.B forge
-.TQ
-.B use forge
-Enter Forge Mode.
-.PP
-Forge commands include:
-.BR "set name" ,
-.BR "set category" ,
-.BR "set description" ,
-.BR add_line ,
-.BR insert_line ,
-.BR delete_line ,
-.BR clear_lines ,
-.BR add_var ,
-.BR add_secret_var ,
-.BR add_optional_var ,
-.BR set_var_required ,
-.BR set_var_default ,
-.BR rm_var ,
-.BR add_tag ,
-.BR rm_tag ,
-.BR "show draft" ,
-.BR validate ,
-.BR "save [--force]" ,
-and
-.BR cancel .
-.SS Plate Packs
-.TP
 .B pack list
 List exported and imported packs.
 .TP
 .B pack export <name>
-Export the whole rack as a zip pack.
-.TP
-.B pack export <name> --category <category>
-Export one category.
-.TP
-.B pack export <name> --tag <tag>
-Export plates matching a tag.
-.TP
-.B pack export <name> --plate <category/name>
-Export one plate.
+Export the rack as a pack.
 .TP
 .B pack inspect <path>
-Inspect a pack without importing.
+Inspect a pack without importing it.
 .TP
 .B pack validate <path>
-Validate pack structure and plate lint status.
+Validate a pack.
 .TP
-.B pack import <path> [--force]
-Import a pack into the rack. Existing plates are not overwritten unless
-.B --force
-is provided.
-.SH TEMPLATE SYNTAX
-Simple variables use Go template function-style names:
-.PP
-.EX
-{{target}}
-{{workdir}}
-{{rate}}
-.EE
-.PP
-Secrets and environment variables use explicit helpers:
-.PP
-.EX
-{{secret "password"}}
-{{env "HOME"}}
-.EE
+.B pack import <path>
+Import a pack.
+.SS Output
+.TP
+.B copy
+Copy the most recent rendered output to the clipboard.
+.TP
+.B save output [filename]
+Save the most recent rendered output.
+.TP
+.B history
+Show recent rendered outputs.
+.TP
+.B export markdown
+.TQ
+.B export json
+.TQ
+.B export yaml
+Export the most recent render.
+.SS Guides and Utility
+.TP
+.B init
+Create data directories and default config if needed.
+.TP
+.B guide
+List built-in guide topics.
+.TP
+.B guide <topic>
+Show a built-in guide topic.
+.TP
+.B shell clear
+Clear the terminal screen.
+.TP
+.B config show
+Show configuration.
+.TP
+.B config set <key> <value>
+Set a supported configuration value.
+.TP
+.B help
+Show shell help.
+.TP
+.B exit
+.TQ
+.B quit
+Exit the shell.
 .SH FILES
 .TP
 .I data/config.yaml
-User configuration.
-.TP
-.I data/rack/
-Plate rack.
+Application config.
 .TP
 .I data/pantry/globals.yaml
 Global pantry variables.
 .TP
-.I data/workspaces/
-Workspace variable files.
+.I data/workspaces/<name>.yaml
+Workspace variables.
+.TP
+.I data/rack/**/*.yml
+Plate YAML files.
+.TP
+.I data/output/
+Render history and saved output.
+.TP
+.I data/packs/
+Pack import/export data.
 .TP
 .I data/secrets/secrets.yaml
 Local plaintext secret store.
-.TP
-.I data/output/history.json
-Render history.
-.TP
-.I data/packs/
-Exported and imported plate packs.
-.SH SECURITY
-PLATES is render-only and never executes commands, templates, Forge drafts, or plate packs.
-.PP
-The Phase 10 secret store is local plaintext. It is separated from pantry and workspace files and ignored by git by default, but it is not encrypted.
-.PP
-Render history stores redacted output for secret-bearing renders unless
-.B store_secret_outputs
-is explicitly enabled.
 .SH EXAMPLES
-.EX
-plates
+.nf
 init
 workspace devhub
 set target 10.129.202.242
-set workdir C:\eUsers\eknjoh\ecode\eboxes\edevhub
+set workdir C:\\Users\\BOB\\code\\boxes\\devhub
+setg my_ip 10.10.14.3
+list plates
 use scanning/nmap_full_tcp
-show ingredients
-stamp
-.EE
+info
+show options
+render
+history
+save output nmap_full_tcp.txt
+.fi
 .PP
-.EX
-secret set password SuperSecret123
-use examples/secret_demo
-stamp
-output show 1
-.EE
-.SH SEE ALSO
-.BR sh (1),
-.BR git (1)
+Use the render-only alias:
+.PP
+.nf
+run
+.fi
+.SH SAFETY
+PLATES does not execute rendered commands, Forge draft content, pack contents,
+or shell output. Review rendered text before copying it into another terminal.
+.PP
+Secrets are masked in normal displays and redacted in render history by default,
+but the local secret store is plaintext.

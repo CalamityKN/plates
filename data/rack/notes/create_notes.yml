@@ -4,7 +4,7 @@ description: Create standard notes and scan directories for a workspace
 tags:
   - notes
   - workspace
-ingredients:
+options:
   workdir:
     description: Workspace directory
     required: true

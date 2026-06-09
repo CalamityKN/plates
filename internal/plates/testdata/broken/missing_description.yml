@@ -1,6 +1,6 @@
 name: missing_description
 category: scanning
-ingredients:
+options:
   target:
     description: Target IP address or hostname
     required: true

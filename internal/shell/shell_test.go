@@ -3,6 +3,7 @@ package shell
 import (
 	"bytes"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -71,12 +72,12 @@ func TestExecuteStampsLoadedPlate(t *testing.T) {
 	commands := []string{
 		"workspace devhub",
 		"set target 10.129.202.242",
-		"set workdir C:\\Users\\knjoh\\code\\boxes\\devhub",
+		"set workdir C:\\Users\\BOB\\code\\boxes\\devhub",
 		"setg http_port 8000",
 		"use scanning/nmap_full_tcp",
-		"show plate",
-		"show ingredients",
-		"stamp",
+		"info",
+		"show options",
+		"render",
 	}
 	for _, command := range commands {
 		if err := sh.Execute(command); err != nil {
@@ -110,12 +111,12 @@ func TestExecuteRefusesStampWhenRequiredIngredientsAreMissing(t *testing.T) {
 	if err := sh.Execute("use scanning/nmap_full_tcp"); err != nil {
 		t.Fatalf("use error = %v", err)
 	}
-	if err := sh.Execute("stamp"); err != nil {
-		t.Fatalf("stamp error = %v", err)
+	if err := sh.Execute("render"); err != nil {
+		t.Fatalf("render error = %v", err)
 	}
 	got := out.String()
-	if !strings.Contains(got, "Missing required ingredients:") || !strings.Contains(got, "target") {
-		t.Fatalf("output missing required ingredient warning:\n%s", got)
+	if !strings.Contains(got, "Missing required options:") || !strings.Contains(got, "target") {
+		t.Fatalf("output missing required option warning:\n%s", got)
 	}
 }
 
@@ -201,44 +202,13 @@ func TestForgeHelpIncludesGuideReferences(t *testing.T) {
 	}
 }
 
-func TestExecuteLintPlate(t *testing.T) {
-	sh, out := newTestShell()
-	if err := sh.Execute("use scanning/nmap_full_tcp"); err != nil {
-		t.Fatalf("use error = %v", err)
-	}
-	out.Reset()
-	if err := sh.Execute("lint plate"); err != nil {
-		t.Fatalf("lint plate error = %v", err)
-	}
-	if !strings.Contains(out.String(), "PASS") || !strings.Contains(out.String(), "No issues found.") {
-		t.Fatalf("lint plate output =\n%s", out.String())
-	}
-}
-
-func TestExecuteLintRackAndHealth(t *testing.T) {
-	sh, out := newTestShell()
-	if err := sh.Execute("lint rack"); err != nil {
-		t.Fatalf("lint rack error = %v", err)
-	}
-	if !strings.Contains(out.String(), "Linting 1 plates") || !strings.Contains(out.String(), "PASS: 1") {
-		t.Fatalf("lint rack output =\n%s", out.String())
-	}
-	out.Reset()
-	if err := sh.Execute("health"); err != nil {
-		t.Fatalf("health error = %v", err)
-	}
-	if !strings.Contains(out.String(), "Rack Health") || !strings.Contains(out.String(), "Total Plates: 1") {
-		t.Fatalf("health output =\n%s", out.String())
-	}
-}
-
-func TestExecuteExplainLint(t *testing.T) {
-	sh, out := newTestShell()
-	if err := sh.Execute("explain lint"); err != nil {
-		t.Fatalf("explain lint error = %v", err)
-	}
-	if !strings.Contains(out.String(), "unused ingredient") || !strings.Contains(out.String(), "undeclared variable") {
-		t.Fatalf("explain lint output =\n%s", out.String())
+func TestDeletedCommandsReturnUnknownCommand(t *testing.T) {
+	sh, _ := newTestShell()
+	for _, command := range []string{"stamp", "lint plate", "health", "explain lint", "output history", "tip", "fortune", "random plate", "version", "about"} {
+		err := sh.Execute(command)
+		if err == nil || !strings.Contains(err.Error(), "unknown command") {
+			t.Fatalf("Execute(%q) error = %v, want unknown command", command, err)
+		}
 	}
 }
 
@@ -302,9 +272,9 @@ func TestExecuteOutputManagementFlow(t *testing.T) {
 	commands := []string{
 		"workspace devhub",
 		"set target 10.129.202.242",
-		"set workdir C:\\Users\\knjoh\\code\\boxes\\devhub",
+		"set workdir C:\\Users\\BOB\\code\\boxes\\devhub",
 		"use scanning/nmap_full_tcp",
-		"stamp",
+		"render",
 	}
 	for _, command := range commands {
 		if err := sh.Execute(command); err != nil {
@@ -312,12 +282,12 @@ func TestExecuteOutputManagementFlow(t *testing.T) {
 		}
 	}
 	if !strings.Contains(out.String(), "Stored as Render #1") {
-		t.Fatalf("stamp output =\n%s", out.String())
+		t.Fatalf("render output =\n%s", out.String())
 	}
 
 	out.Reset()
-	if err := sh.Execute("output history"); err != nil {
-		t.Fatalf("output history error = %v", err)
+	if err := sh.Execute("history"); err != nil {
+		t.Fatalf("history error = %v", err)
 	}
 	if !strings.Contains(out.String(), "Recent Output History") || !strings.Contains(out.String(), "scanning/nmap_full_tcp") {
 		t.Fatalf("history output =\n%s", out.String())
@@ -347,23 +317,8 @@ func TestExecuteOutputManagementFlow(t *testing.T) {
 		t.Fatalf("export markdown =\n%s", out.String())
 	}
 
-	out.Reset()
-	if err := sh.Execute("output stats"); err != nil {
-		t.Fatalf("output stats error = %v", err)
-	}
-	if !strings.Contains(out.String(), "Total Renders: 1") {
-		t.Fatalf("stats output =\n%s", out.String())
-	}
-
-	out.Reset()
-	if err := sh.Execute("output clear"); err != nil {
-		t.Fatalf("output clear error = %v", err)
-	}
-	if err := sh.Execute("YES"); err != nil {
-		t.Fatalf("YES error = %v", err)
-	}
-	if !strings.Contains(out.String(), "Output history cleared.") {
-		t.Fatalf("clear output =\n%s", out.String())
+	if err := sh.Execute("output stats"); err == nil {
+		t.Fatal("output stats error = nil")
 	}
 }
 
@@ -413,11 +368,11 @@ func TestSecretIngredientDisplaysMasked(t *testing.T) {
 		t.Fatalf("use error = %v", err)
 	}
 	out.Reset()
-	if err := sh.Execute("show ingredients"); err != nil {
-		t.Fatalf("show ingredients error = %v", err)
+	if err := sh.Execute("show options"); err != nil {
+		t.Fatalf("show options error = %v", err)
 	}
 	if strings.Contains(out.String(), "SuperSecret123") || !strings.Contains(out.String(), "password") || !strings.Contains(out.String(), "********") {
-		t.Fatalf("show ingredients output =\n%s", out.String())
+		t.Fatalf("show options output =\n%s", out.String())
 	}
 }
 
@@ -436,16 +391,10 @@ func TestRenderHistoryStoresRedactedOutputByDefault(t *testing.T) {
 	if err := sh.Execute("use examples/secret_demo"); err != nil {
 		t.Fatalf("use error = %v", err)
 	}
-	if err := sh.Execute("stamp"); err != nil {
-		t.Fatalf("stamp error = %v", err)
+	if err := sh.Execute("render"); err != nil {
+		t.Fatalf("render error = %v", err)
 	}
 	out.Reset()
-	if err := sh.Execute("output show 1"); err != nil {
-		t.Fatalf("output show error = %v", err)
-	}
-	if strings.Contains(out.String(), "SuperSecret123") || !strings.Contains(out.String(), "********") {
-		t.Fatalf("output show =\n%s", out.String())
-	}
 	if err := sh.Execute("output show 1 --reveal"); err == nil {
 		t.Fatal("output show --reveal error = nil")
 	}
@@ -467,12 +416,12 @@ func TestConfigTrueAllowsRawSecretOutputStorage(t *testing.T) {
 	_ = sh.Execute("set username alice")
 	_ = sh.Execute("secret set password SuperSecret123")
 	_ = sh.Execute("use examples/secret_demo")
-	if err := sh.Execute("stamp"); err != nil {
-		t.Fatalf("stamp error = %v", err)
+	if err := sh.Execute("render"); err != nil {
+		t.Fatalf("render error = %v", err)
 	}
 	out.Reset()
-	if err := sh.Execute("output show 1 --reveal"); err != nil {
-		t.Fatalf("output show --reveal error = %v", err)
+	if err := sh.outputShow("1", true, true); err != nil {
+		t.Fatalf("internal output show --reveal error = %v", err)
 	}
 	if !strings.Contains(out.String(), "SuperSecret123") {
 		t.Fatalf("output show --reveal =\n%s", out.String())
@@ -550,65 +499,135 @@ func TestPromptStyleFullAndCompact(t *testing.T) {
 	}
 }
 
-func TestTipAndFortuneReturnOutput(t *testing.T) {
-	sh, out := newTestShell()
-	if err := sh.Execute("tip"); err != nil {
-		t.Fatalf("tip error = %v", err)
-	}
-	if strings.TrimSpace(out.String()) == "" {
-		t.Fatal("tip output empty")
-	}
-	out.Reset()
-	if err := sh.Execute("fortune"); err != nil {
-		t.Fatalf("fortune error = %v", err)
-	}
-	if strings.TrimSpace(out.String()) == "" {
-		t.Fatal("fortune output empty")
-	}
-}
-
-func TestRandomPlateAndUse(t *testing.T) {
-	sh, out := newTestShell()
-	if err := sh.Execute("random plate"); err != nil {
-		t.Fatalf("random plate error = %v", err)
-	}
-	if !strings.Contains(out.String(), "Random Plate") || !strings.Contains(out.String(), "scanning/nmap_full_tcp") {
-		t.Fatalf("random plate output =\n%s", out.String())
-	}
-	out.Reset()
-	if err := sh.Execute("random plate --use"); err != nil {
-		t.Fatalf("random plate --use error = %v", err)
-	}
-	if sh.plate == nil || sh.plate.Key() != "scanning/nmap_full_tcp" {
-		t.Fatalf("loaded plate = %#v", sh.plate)
-	}
-}
-
-func TestVersionAndAboutOutput(t *testing.T) {
-	sh, out := newTestShell()
-	if err := sh.Execute("version"); err != nil {
-		t.Fatalf("version error = %v", err)
-	}
-	if !strings.Contains(out.String(), "PLATES version 0.8.0") {
-		t.Fatalf("version output =\n%s", out.String())
-	}
-	out.Reset()
-	if err := sh.Execute("about"); err != nil {
-		t.Fatalf("about error = %v", err)
-	}
-	if !strings.Contains(out.String(), "render-only") || !strings.Contains(out.String(), "does not execute") {
-		t.Fatalf("about output =\n%s", out.String())
-	}
-}
-
-func TestHelpIncludesPhaseEightCommands(t *testing.T) {
+func TestHelpUsesSimplifiedSections(t *testing.T) {
 	sh, out := newTestShell()
 	if err := sh.Execute("help"); err != nil {
 		t.Fatalf("help error = %v", err)
 	}
-	for _, want := range []string{"config show", "config set <key> <value>", "tip", "fortune", "random plate", "version", "about"} {
+	text := out.String()
+	if !strings.Contains(text, "Variables and State") || !strings.Contains(text, "show options") || !strings.Contains(text, "history") || !strings.Contains(text, "shell clear") {
+		t.Fatalf("help output =\n%s", text)
+	}
+	if strings.Contains(text, "stamp") || strings.Contains(text, "lint") || strings.Contains(text, "random plate") {
+		t.Fatalf("help includes removed commands:\n%s", text)
+	}
+	if strings.Index(text, "show pantry") > strings.Index(text, "list plates") {
+		t.Fatalf("help does not put variable commands first:\n%s", text)
+	}
+}
+
+func TestRenderAliasesAndInfoCommands(t *testing.T) {
+	for _, command := range []string{"render", "r", "run"} {
+		sh, out := newTestShell()
+		_ = sh.Execute("workspace devhub")
+		_ = sh.Execute("set target 10.129.202.242")
+		_ = sh.Execute("set workdir C:\\Users\\BOB\\code\\boxes\\devhub")
+		_ = sh.Execute("use scanning/nmap_full_tcp")
+		out.Reset()
+		if err := sh.Execute(command); err != nil {
+			t.Fatalf("%s error = %v", command, err)
+		}
+		if !strings.Contains(out.String(), "Render-only output") || !strings.Contains(out.String(), "did not execute") {
+			t.Fatalf("%s output =\n%s", command, out.String())
+		}
+	}
+	for _, command := range []string{"info", "ll"} {
+		sh, out := newTestShell()
+		_ = sh.Execute("use scanning/nmap_full_tcp")
+		out.Reset()
+		if err := sh.Execute(command); err != nil {
+			t.Fatalf("%s error = %v", command, err)
+		}
+		if !strings.Contains(out.String(), "Options: 3") || strings.Contains(out.String(), "Health:") {
+			t.Fatalf("%s output =\n%s", command, out.String())
+		}
+	}
+}
+
+func TestShellClear(t *testing.T) {
+	sh, out := newTestShell()
+	if err := sh.Execute("shell clear"); err != nil {
+		t.Fatalf("shell clear error = %v", err)
+	}
+	if out.String() == "" {
+		t.Fatal("shell clear output empty")
+	}
+}
+
+func TestNoUserFacingIngredientsInCoreOutput(t *testing.T) {
+	sh, out := newTestShell()
+	for _, command := range []string{"use scanning/nmap_full_tcp", "show options", "info", "help"} {
+		if err := sh.Execute(command); err != nil {
+			t.Fatalf("%s error = %v", command, err)
+		}
+	}
+	if strings.Contains(strings.ToLower(out.String()), "ingredient") {
+		t.Fatalf("output contains ingredient terminology:\n%s", out.String())
+	}
+}
+
+func TestHelpIncludesConfigCommands(t *testing.T) {
+	sh, out := newTestShell()
+	if err := sh.Execute("help"); err != nil {
+		t.Fatalf("help error = %v", err)
+	}
+	for _, want := range []string{"config show", "config set <key> <value>"} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("help missing %q:\n%s", want, out.String())
+		}
+	}
+}
+
+func TestRepositoryTextDoesNotContainPersonalPath(t *testing.T) {
+	root := filepath.Clean(filepath.Join("..", ".."))
+	personalPath := `C:\Users\` + `knjoh\`
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			switch entry.Name() {
+			case ".git", "data":
+				if entry.Name() == ".git" {
+					return filepath.SkipDir
+				}
+			}
+			return nil
+		}
+		ext := filepath.Ext(path)
+		switch ext {
+		case ".go", ".md", ".yml", ".yaml", ".1", ".txt":
+		default:
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(data), personalPath) {
+			t.Fatalf("%s contains personal path", path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestManPageContainsSimplifiedCommandSet(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "man", "plates.1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	for _, want := range []string{"show options", "info", "history", "shell clear"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("man page missing %q", want)
+		}
+	}
+	for _, removed := range []string{"show ingredients", "show plate", "stamp", "lint rack", "random plate"} {
+		if strings.Contains(text, removed) {
+			t.Fatalf("man page contains removed command %q", removed)
 		}
 	}
 }
@@ -795,7 +814,7 @@ func secretDemoPlate() plates.Plate {
 		Tags:        []string{"secrets", "demo"},
 		Ingredients: map[string]plates.Ingredient{
 			"username": {Description: "Example username", Required: true},
-			"password": {Description: "Example password stored as a secret ingredient", Required: true, Secret: true},
+			"password": {Description: "Example password stored as a secret option", Required: true, Secret: true},
 		},
 		Template: "echo \"User: {{username}}\"\necho \"Password: {{secret \"password\"}}\"\necho \"Home: {{env \"HOME\"}}\"\n",
 	}

@@ -8,4 +8,4 @@ Phase 1 establishes the PLATES shell and storage foundation:
 - YAML-backed workspace variables.
 - Recursive plate discovery under `data/rack`.
 
-Rendering, validation of plate ingredients, forge mode, search, linting, clipboard support, and startup banners are reserved for later phases.
+Rendering, validation of plate options, forge mode, search, linting, clipboard support, and startup banners are reserved for later phases.

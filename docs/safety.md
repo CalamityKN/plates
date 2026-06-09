@@ -17,7 +17,7 @@ Pantry and workspace YAML files are plain text. Store secrets carefully and avoi
 
 For sensitive values, use `secret set <key> <value>`. The Phase 10 secret store lives in `data/secrets/secrets.yaml` and is local plaintext unless future encryption is added. The directory is ignored by git by default.
 
-Renders containing secrets are stored redacted in output history by default. `store_secret_outputs: true` allows raw secret output to be stored, and should be used carefully.
+Renders containing secrets are stored redacted in history by default. `store_secret_outputs: true` allows raw secret output to be stored, and should be used carefully.
 
 ## Responsibility
 

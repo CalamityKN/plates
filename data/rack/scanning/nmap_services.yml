@@ -4,7 +4,7 @@ description: Service and version scan against selected ports
 tags:
   - nmap
   - services
-ingredients:
+options:
   target:
     description: Target IP address or hostname
     required: true

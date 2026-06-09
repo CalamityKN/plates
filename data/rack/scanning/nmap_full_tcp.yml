@@ -5,7 +5,7 @@ tags:
   - nmap
   - scanning
   - tcp
-ingredients:
+options:
   target:
     description: Target IP address or hostname
     required: true

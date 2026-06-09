@@ -11,7 +11,7 @@ init
 ```text
 workspace devhub
 set target 10.129.202.242
-set workdir C:\Users\knjoh\code\boxes\devhub
+set workdir C:\Users\BOB\code\boxes\devhub
 ```
 
 ## Set Pantry Values
@@ -28,16 +28,16 @@ show pantry
 list plates
 search plates nmap
 use scanning/nmap_full_tcp
-show plate
-show ingredients
-stamp
+info
+show options
+render
 ```
 
 ## Use A File-Serving Plate
 
 ```text
 use files/http_server
-show ingredients
+show options
 render
 ```
 

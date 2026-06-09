@@ -5,7 +5,7 @@ tags:
   - impacket
   - smb
   - files
-ingredients:
+options:
   share_name:
     description: SMB share name
     required: false

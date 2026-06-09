@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Plate struct {
@@ -12,7 +14,7 @@ type Plate struct {
 	Category    string                `yaml:"category"`
 	Description string                `yaml:"description"`
 	Tags        []string              `yaml:"tags"`
-	Ingredients map[string]Ingredient `yaml:"ingredients"`
+	Ingredients map[string]Ingredient `yaml:"options"`
 	Template    string                `yaml:"template"`
 	Path        string                `yaml:"-"`
 }
@@ -29,6 +31,32 @@ func (p Plate) Key() string {
 		return p.Name
 	}
 	return p.Category + "/" + p.Name
+}
+
+func (p *Plate) UnmarshalYAML(value *yaml.Node) error {
+	type rawPlate struct {
+		Name        string                `yaml:"name"`
+		Category    string                `yaml:"category"`
+		Description string                `yaml:"description"`
+		Tags        []string              `yaml:"tags"`
+		Options     map[string]Ingredient `yaml:"options"`
+		Ingredients map[string]Ingredient `yaml:"ingredients"`
+		Template    string                `yaml:"template"`
+	}
+	var raw rawPlate
+	if err := value.Decode(&raw); err != nil {
+		return err
+	}
+	p.Name = raw.Name
+	p.Category = raw.Category
+	p.Description = raw.Description
+	p.Tags = raw.Tags
+	p.Template = raw.Template
+	p.Ingredients = raw.Options
+	if p.Ingredients == nil {
+		p.Ingredients = raw.Ingredients
+	}
+	return nil
 }
 
 func (p Plate) Validate() error {
@@ -50,13 +78,13 @@ func (p Plate) Validate() error {
 	}
 	for name, ingredient := range p.Ingredients {
 		if strings.TrimSpace(name) == "" {
-			return errors.New("plate contains an ingredient with an empty name")
+			return errors.New("plate contains an option with an empty name")
 		}
 		if !templateIdentifierPattern.MatchString(name) {
-			return fmt.Errorf("ingredient %q must use letters, numbers, and underscores, starting with a letter or underscore", name)
+			return fmt.Errorf("option %q must use letters, numbers, and underscores, starting with a letter or underscore", name)
 		}
 		if strings.TrimSpace(ingredient.Description) == "" {
-			return fmt.Errorf("ingredient %q is missing description", name)
+			return fmt.Errorf("option %q is missing description", name)
 		}
 	}
 	return nil
